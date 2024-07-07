@@ -115,7 +115,6 @@ void init_tonearm_lift_gpio(bool* down_pin_bool, bool* up_pin_bool)
     gpio_set_dir(LIFT_UP_PIN, GPIO_IN);
     gpio_pull_down(LIFT_UP_PIN);
     gpio_set_slew_rate(LIFT_UP_PIN, GPIO_SLEW_RATE_SLOW);
-    // TODO: This line must be run after attaching a callback to the GPIO IRQ
     gpio_set_irq_enabled(LIFT_UP_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     if (gpio_get(LIFT_UP_PIN))
         *up_pin_bool = true;
@@ -130,7 +129,9 @@ void init_tonearm_lift_gpio(bool* down_pin_bool, bool* up_pin_bool)
         *down_pin_bool = true;
 }
 
-void init_tonearm_transport_gpio(bool* rest_pin_bool, bool* stop_pin_bool)
+void init_tonearm_transport_gpio(bool* rest_pin_bool,
+                                 bool* stop_pin_bool,
+                                 bool* leadin_pin_bool)
 {
     //// Tonearm transport
     // Set up transport motor control pwm pins
@@ -162,17 +163,50 @@ void init_tonearm_transport_gpio(bool* rest_pin_bool, bool* stop_pin_bool)
     if (gpio_get(POS_STOP_PIN))
         *stop_pin_bool = true;
 
+    // Set up transport LP lead-in photodiode pin
+    gpio_init(POS_LEADIN_PIN);
+    gpio_set_dir(POS_LEADIN_PIN, GPIO_IN);
+    gpio_disable_pulls(POS_LEADIN_PIN);
+    gpio_set_irq_enabled(POS_LEADIN_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+    if (gpio_get(POS_LEADIN_PIN))
+        *leadin_pin_bool = true;
 }
 
-void init_control_gpio(bool* cue_pin_bool)
+// Set up control button GPIO
+void init_control_gpio(bool* cue_pin_bool,
+                       bool* start_pin_bool,
+                       bool* stop_pin_bool,
+                       bool* repeat_pin_bool)
 {
-    // Set up tonearm transport positioning GPIO
-    // Set up rest microswitch pin
-    gpio_init(CUE_PIN);
-    gpio_set_dir(CUE_PIN, GPIO_IN);
-    gpio_pull_down(CUE_PIN);
-    // TODO: This line must be run after attaching a callback to the GPIO IRQ
-    gpio_set_irq_enabled(CUE_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-    if (gpio_get(CUE_PIN))
+    // Set up cue/lift button
+    gpio_init(CTRL_CUE_PIN);
+    gpio_set_dir(CTRL_CUE_PIN, GPIO_IN);
+    gpio_pull_down(CTRL_CUE_PIN);
+    gpio_set_irq_enabled(CTRL_CUE_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+    if (gpio_get(CTRL_CUE_PIN))
         *cue_pin_bool = true;
+
+    // Set up start button
+    gpio_init(CTRL_START_PIN);
+    gpio_set_dir(CTRL_START_PIN, GPIO_IN);
+    gpio_pull_down(CTRL_START_PIN);
+    gpio_set_irq_enabled(CTRL_START_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+    if (gpio_get(CTRL_START_PIN))
+        *start_pin_bool = true;
+
+    // Set up stop button
+    gpio_init(CTRL_STOP_PIN);
+    gpio_set_dir(CTRL_STOP_PIN, GPIO_IN);
+    gpio_pull_down(CTRL_STOP_PIN);
+    gpio_set_irq_enabled(CTRL_STOP_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+    if (gpio_get(CTRL_STOP_PIN))
+        *stop_pin_bool = true;
+
+    // Set up repeat button
+    gpio_init(CTRL_REPEAT_PIN);
+    gpio_set_dir(CTRL_REPEAT_PIN, GPIO_IN);
+    gpio_pull_down(CTRL_REPEAT_PIN);
+    gpio_set_irq_enabled(CTRL_REPEAT_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+    if (gpio_get(CTRL_REPEAT_PIN))
+        *repeat_pin_bool = true;
 }

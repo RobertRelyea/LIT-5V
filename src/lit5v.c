@@ -8,15 +8,22 @@
 #include "lit5v_gpio.h"
 
 // TODO: Handle these state variables in a better way, probably some encapsulating class
-bool stop_pin_high = false;
+// Tonearm positioning
 bool rest_pin_high = false;
+bool leadin_pin_high = false;
+bool stop_pin_high = false;
 
+// Cue/lift
 bool up_pin_high = false;
 bool down_pin_high = false;
 
-bool cue_pin_high = false;
+// Control buttons
+bool ctrl_cue_pin_high = false;
+bool ctrl_start_pin_high = false;
+bool ctrl_stop_pin_high = false;
+bool ctrl_repeat_pin_high = false;
 
-// TODO: Debounce these inputs somehow, also make less gross
+// Todo: Debounce these inputs somehow, also make less gross
 void gpio_callback(uint gpio, uint32_t events)
 {
     switch(gpio)
@@ -33,8 +40,17 @@ void gpio_callback(uint gpio, uint32_t events)
     case LIFT_DOWN_PIN:
         down_pin_high = gpio_get(LIFT_DOWN_PIN);
         break;
-    case CUE_PIN:
-        handle_pin_event(events, &cue_pin_high);
+    case CTRL_CUE_PIN:
+        ctrl_cue_pin_high = gpio_get(CTRL_CUE_PIN);
+        break;
+    case CTRL_START_PIN:
+        handle_pin_event(events, &ctrl_start_pin_high);
+        break;
+    case CTRL_STOP_PIN:
+        handle_pin_event(events, &ctrl_stop_pin_high);
+        break;
+    case CTRL_REPEAT_PIN:
+        handle_pin_event(events, &ctrl_repeat_pin_high);
         break;
     }
 
@@ -71,25 +87,29 @@ int32_t get_tracking_error()
 int main() {
     stdio_init_all();
 
-    // Initialize all LIT-5V gpio
     gpio_set_irq_callback(&gpio_callback);
-    init_tonearm_transport_gpio(&rest_pin_high, &stop_pin_high);
+    irq_set_enabled(IO_IRQ_BANK0, true);
+
+    // Initialize all LIT-5V gpio
+    init_tonearm_transport_gpio(&rest_pin_high,
+                                &stop_pin_high,
+                                &leadin_pin_high);
     init_tonearm_lift_gpio(&down_pin_high, &up_pin_high);
     init_tonearm_tracking_gpio();
-    init_turntable_gpio();
-    init_control_gpio(&cue_pin_high);
+    init_control_gpio(&ctrl_cue_pin_high,
+                      &ctrl_start_pin_high,
+                      &ctrl_stop_pin_high,
+                      &ctrl_repeat_pin_high);
 
     // Set up a basic tracking and tonearm control loop
     bool tonearm_up = up_pin_high;
-
-    set_turntable_dc(0);
 
     int base_dc = 0;
 
     while (1)
     {
         // TODO: This gets wrecked by bouncing
-        if (cue_pin_high)
+        if (ctrl_cue_pin_high)
         {
             tonearm_up = !tonearm_up;
         }
@@ -103,11 +123,6 @@ int main() {
         {
             lower_tonearm();
         }
-
-        if (down_pin_high)
-            base_dc = 0;
-        else
-            base_dc = 0;
 
         int32_t tracking_error = get_tracking_error();
         int32_t scaled_tracking_error = tracking_error / 40;
@@ -125,7 +140,7 @@ int main() {
 
         // TODO: Better debug logging, this kills the main loop
         printf("Tracking error %d\t Scaled %d\n", tracking_error, scaled_tracking_error);
-        printf("Cue : %d\n", cue_pin_high);
+        printf("Cue : %d\n", ctrl_cue_pin_high);
         sleep_ms(50);
     }
 }
