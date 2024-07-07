@@ -49,3 +49,13 @@ void set_tonearm_transport_dc(uint32_t duty_cycle, bool direction);
 void set_tonearm_lift_dc(uint32_t duty_cycle, bool direction);
 
 void set_turntable_dc(uint32_t duty_cycle);
+
+void init_turntable_gpio();
+
+void init_tonearm_tracking_gpio();
+
+void init_tonearm_lift_gpio(bool* down_pin_bool, bool* up_pin_bool);
+
+void init_tonearm_transport_gpio(bool* rest_pin_bool, bool* stop_pin_bool);
+
+void init_control_gpio(bool* cue_pin_bool);
