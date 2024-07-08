@@ -15,14 +15,6 @@ uint32_t pwm_set_freq_duty(uint slice_num,
     return wrap;
 }
 
-void handle_pin_event(uint32_t events, bool* pin_bool)
-{
-    if (events & GPIO_IRQ_EDGE_RISE)
-        *pin_bool = true;
-    else if (events & GPIO_IRQ_EDGE_FALL)
-        *pin_bool = false;
-}
-
 void set_motor_pwm(uint32_t duty_cycle, bool direction, uint fwd_pin, uint rev_pin)
 {
     uint32_t fwd_dc = 0;

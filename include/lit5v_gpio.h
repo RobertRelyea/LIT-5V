@@ -13,7 +13,6 @@
 // Tonearm Positioning
 #define POS_REST_PIN 18
 #define POS_LEADIN_PIN 20
-#define POS_SINGLE_PIN 21
 #define POS_STOP_PIN 22
 // Tonearm Tracking
 #define TRACK_IN_PIN 28
