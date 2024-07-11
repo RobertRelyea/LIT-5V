@@ -23,7 +23,7 @@ bool ctrl_start_pin_high = false;
 bool ctrl_stop_pin_high = false;
 bool ctrl_repeat_pin_high = false;
 
-bool gpio_update = false;
+bool ctrl_repeat_bool = false;
 
 typedef enum
 {
@@ -71,10 +71,13 @@ void gpio_callback(uint gpio, uint32_t events)
         break;
     case CTRL_REPEAT_PIN:
         ctrl_repeat_pin_high = gpio_get(CTRL_REPEAT_PIN);
+        if (ctrl_repeat_pin_high)
+        {
+            ctrl_repeat_bool = !ctrl_repeat_bool;
+            printf("Repeat: %d\n", ctrl_repeat_bool);
+        }
         break;
     }
-
-    gpio_update = true;
 }
 
 // Lowers the tonearm
@@ -88,7 +91,7 @@ void lower_tonearm()
 // Raises the tonearm
 void raise_tonearm()
 {
-    set_tonearm_lift_dc(90, true);
+    set_tonearm_lift_dc(80, true);
     while(!up_pin_high){tight_loop_contents();}
     set_tonearm_lift_dc(0, true);
 }
@@ -120,7 +123,10 @@ tt_states rest_tonearm(tt_states current_state)
         raise_tonearm();
         // Transport tonearm to rest position
         while(!pos_rest_pin_high)
+        {
             set_tonearm_transport_dc(80, false);
+            tight_loop_contents();
+        }
         // Stop tonearm transport
         set_tonearm_transport_dc(0, true);
     case rest_up:
@@ -128,6 +134,29 @@ tt_states rest_tonearm(tt_states current_state)
         lower_tonearm();
     }
     return rest_down;
+}
+
+tt_states tonearm_to_leadin(tt_states current_state)
+{
+    raise_tonearm();
+
+    // If we are already in the leadin section, move towards rest until we are out of it
+    while(pos_leadin_pin_high)
+    {
+        set_tonearm_transport_dc(80, false);
+        tight_loop_contents();
+    }
+
+    // Move to the start of the leadin section
+    while(!pos_leadin_pin_high)
+    {
+        set_tonearm_transport_dc(80, true);
+        tight_loop_contents();
+    }
+    set_tonearm_transport_dc(0, true);
+    // Yeah state stuff needs to be handled in a much more reactive way
+    // but I just wanna listen to music right now.
+    return over_leadin;
 }
 
 int32_t get_tracking_error()
@@ -144,21 +173,29 @@ int32_t get_tracking_error()
 
 int main() {
     stdio_init_all();
+    printf("Initializing GPIO\n");
 
     // Initialize GPIO interrupt callback
     gpio_set_irq_callback(&gpio_callback);
     irq_set_enabled(IO_IRQ_BANK0, true);
 
+    printf("IRQ Initialized\n");
+
     // Initialize all LIT-5V gpio
     init_tonearm_transport_gpio(&pos_rest_pin_high,
                                 &pos_stop_pin_high,
                                 &pos_leadin_pin_high);
+
+    printf("Tonearm Transport Initialized\n");
     init_tonearm_lift_gpio(&down_pin_high, &up_pin_high);
+    printf("Tonearm Lift Initialized\n");
     init_tonearm_tracking_gpio();
+    printf("Tonearm Tracking Initialized\n");
     init_control_gpio(&ctrl_cue_pin_high,
                       &ctrl_start_pin_high,
                       &ctrl_stop_pin_high,
                       &ctrl_repeat_pin_high);
+    printf("Control Initialized\n");
 
     //// Initialize turntable state machine
     // TODO: Determine initial state from tonearm switches and photodiodes
@@ -181,10 +218,16 @@ int main() {
                 raise_tonearm();
                 current_state = rest_up;
             }
+            else if (ctrl_start_pin_high)
+            {
+                current_state = tonearm_to_leadin(current_state);
+                lower_tonearm();
+                current_state = playing;
+            }
             break;
 
         case rest_up:
-            if (ctrl_cue_pin_high)
+            if (ctrl_cue_pin_high || ctrl_stop_pin_high)
             {
                 lower_tonearm();
                 current_state = rest_down;
@@ -192,18 +235,11 @@ int main() {
 
             if (ctrl_start_pin_high)
             {
-                while(!pos_leadin_pin_high)
-                {
-                    set_tonearm_transport_dc(80, true);
-                }
-                set_tonearm_transport_dc(0, true);
-                // Yeah state stuff needs to be handled in a much more reactive way
-                // but I just wanna listen to music right now.
-                current_state = over_leadin;
-
+                current_state = tonearm_to_leadin(current_state);
                 lower_tonearm();
                 current_state = playing;
             }
+
             break;
 
         case manual_seek:
@@ -214,9 +250,16 @@ int main() {
             }
             if (ctrl_stop_pin_high)
             {
-                set_tonearm_transport_dc(60, false);
+                if (!pos_leadin_pin_high)
+                {
+                    current_state = rest_tonearm(current_state);
+                }
+                else
+                {
+                    set_tonearm_transport_dc(60, false);
+                }
             }
-            else if(ctrl_start_pin_high)
+            else if(ctrl_start_pin_high && !pos_stop_pin_high)
             {
                 set_tonearm_transport_dc(60, true);
             }
@@ -236,6 +279,22 @@ int main() {
             else if (pos_stop_pin_high)
             {
                 set_tonearm_transport_dc(0, true);
+
+                // Go back to the leadin and lower the tonearm if repeat is on
+                if (ctrl_repeat_bool)
+                {
+                    current_state = tonearm_to_leadin(current_state);
+                    lower_tonearm();
+                    current_state = playing;
+                }
+                // Rest otherwise
+                else
+                {
+                    current_state = rest_tonearm(current_state);
+                }
+            }
+            else if (ctrl_stop_pin_high)
+            {
                 current_state = rest_tonearm(current_state);
             }
             else
@@ -260,9 +319,6 @@ int main() {
                 /* printf("Cue : %d\n", ctrl_cue_pin_high); */
                 /* sleep_ms(50); */
             }
-
-
-
             break;
         }
     }
