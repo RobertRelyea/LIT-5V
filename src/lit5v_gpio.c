@@ -54,27 +54,6 @@ void set_tonearm_lift_dc(uint32_t duty_cycle, bool direction)
     set_motor_pwm(duty_cycle, direction, LIFT_FWD_PIN, LIFT_REV_PIN);
 }
 
-void set_turntable_dc(uint32_t duty_cycle)
-{
-    uint forward_slice_num = pwm_gpio_to_slice_num(TT_FWD_PIN);
-    uint forward_channel = pwm_gpio_to_channel(TT_FWD_PIN);
-    pwm_set_freq_duty(forward_slice_num, forward_channel, 5, duty_cycle);
-}
-
-void init_turntable_gpio()
-{
-    //// Turntable motor
-    // Set up turntable motor control pwm pins
-    gpio_set_function(TT_FWD_PIN, GPIO_FUNC_PWM);
-
-    // Find out which PWM slice is connected
-    uint forward_slice_num = pwm_gpio_to_slice_num(TT_FWD_PIN);
-
-    // Set the PWM running
-    pwm_set_enabled(forward_slice_num, true);
-
-}
-
 void init_tonearm_tracking_gpio()
 {
     adc_init();
@@ -105,19 +84,19 @@ void init_tonearm_lift_gpio(bool* down_pin_bool, bool* up_pin_bool)
     // Set up rest microswitch pin
     gpio_init(LIFT_UP_PIN);
     gpio_set_dir(LIFT_UP_PIN, GPIO_IN);
-    gpio_pull_down(LIFT_UP_PIN);
+    gpio_pull_up(LIFT_UP_PIN);
     gpio_set_slew_rate(LIFT_UP_PIN, GPIO_SLEW_RATE_SLOW);
     gpio_set_irq_enabled(LIFT_UP_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-    if (gpio_get(LIFT_UP_PIN))
+    if (!gpio_get(LIFT_UP_PIN))
         *up_pin_bool = true;
 
     // Set up transport stop photodiode pin
     gpio_init(LIFT_DOWN_PIN);
     gpio_set_dir(LIFT_DOWN_PIN, GPIO_IN);
-    gpio_pull_down(LIFT_DOWN_PIN);
+    gpio_pull_up(LIFT_DOWN_PIN);
     gpio_set_slew_rate(LIFT_DOWN_PIN, GPIO_SLEW_RATE_SLOW);
     gpio_set_irq_enabled(LIFT_DOWN_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-    if (gpio_get(LIFT_DOWN_PIN))
+    if (!gpio_get(LIFT_DOWN_PIN))
         *down_pin_bool = true;
 }
 
@@ -142,9 +121,9 @@ void init_tonearm_transport_gpio(bool* rest_pin_bool,
     // Set up rest microswitch pin
     gpio_init(POS_REST_PIN);
     gpio_set_dir(POS_REST_PIN, GPIO_IN);
-    gpio_pull_down(POS_REST_PIN);
+    gpio_pull_up(POS_REST_PIN);
     gpio_set_irq_enabled(POS_REST_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-    if (gpio_get(POS_REST_PIN))
+    if (!gpio_get(POS_REST_PIN))
         *rest_pin_bool = true;
 
     // Set up transport stop photodiode pin
@@ -201,4 +180,26 @@ void init_control_gpio(bool* cue_pin_bool,
     gpio_set_irq_enabled(CTRL_REPEAT_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     if (gpio_get(CTRL_REPEAT_PIN))
         *repeat_pin_bool = true;
+}
+
+void init_led_gpio()
+{
+    gpio_init(LED_LEADIN_PIN);
+    gpio_set_dir(LED_LEADIN_PIN, GPIO_OUT);
+    gpio_put(LED_LEADIN_PIN, 1);
+
+    gpio_init(LED_SINGLE_PIN);
+    gpio_set_dir(LED_SINGLE_PIN, GPIO_OUT);
+    gpio_put(LED_SINGLE_PIN, 0);
+
+    gpio_init(LED_END_PIN);
+    gpio_set_dir(LED_END_PIN, GPIO_OUT);
+    gpio_put(LED_END_PIN, 1);
+
+    gpio_init(LED_TT_PIN);
+    gpio_set_function(LED_TT_PIN, GPIO_FUNC_PWM);
+    uint slice_num = pwm_gpio_to_slice_num(LED_TT_PIN);
+    uint channel = pwm_gpio_to_channel(LED_TT_PIN);
+    pwm_set_enabled(slice_num, true);
+    pwm_set_freq_duty(slice_num, channel, 60, 10);
 }

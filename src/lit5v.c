@@ -46,7 +46,7 @@ void gpio_callback(uint gpio, uint32_t events)
     switch(gpio)
     {
     case POS_REST_PIN:
-        pos_rest_pin_high = gpio_get(POS_REST_PIN);
+        pos_rest_pin_high = !gpio_get(POS_REST_PIN);
         break;
     case POS_LEADIN_PIN:
         pos_leadin_pin_high = gpio_get(POS_LEADIN_PIN);
@@ -55,10 +55,10 @@ void gpio_callback(uint gpio, uint32_t events)
         pos_stop_pin_high = gpio_get(POS_STOP_PIN);
         break;
     case LIFT_UP_PIN:
-        up_pin_high = gpio_get(LIFT_UP_PIN);
+        up_pin_high = !gpio_get(LIFT_UP_PIN);
         break;
     case LIFT_DOWN_PIN:
-        down_pin_high = gpio_get(LIFT_DOWN_PIN);
+        down_pin_high = !gpio_get(LIFT_DOWN_PIN);
         break;
     case CTRL_CUE_PIN:
         ctrl_cue_pin_high = gpio_get(CTRL_CUE_PIN);
@@ -175,6 +175,8 @@ int main() {
     stdio_init_all();
     printf("Initializing GPIO\n");
 
+    init_led_gpio();
+
     // Initialize GPIO interrupt callback
     gpio_set_irq_callback(&gpio_callback);
     irq_set_enabled(IO_IRQ_BANK0, true);
@@ -210,6 +212,8 @@ int main() {
     // Tonearm movements should be handled without any blocking operations
     while(1)
     {
+        printf("Rest: %d Leadin: %d Stop: %d\n", pos_rest_pin_high, pos_leadin_pin_high, pos_stop_pin_high);
+
         switch(current_state)
         {
         case rest_down:
@@ -319,6 +323,7 @@ int main() {
                 /* printf("Cue : %d\n", ctrl_cue_pin_high); */
                 /* sleep_ms(50); */
             }
+
             break;
         }
     }
